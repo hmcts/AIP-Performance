@@ -1,4 +1,4 @@
-package uk.gov.hmcts.reform.cmc.performance.scenarios.utils
+package uk.gov.hmcts.reform.aip.performance.scenarios.utils
 
 import io.gatling.core.Predef._
 import io.gatling.core.check.CheckBuilder

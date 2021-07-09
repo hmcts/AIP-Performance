@@ -1,4 +1,4 @@
-package uk.gov.hmcts.reform.cmc.performance.scenarios.utils
+package uk.gov.hmcts.reform.aip.performance.scenarios.utils
 
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
@@ -36,7 +36,7 @@ object Headers {
     "accept-encoding" -> "gzip, deflate, br",
     "accept-language" -> "en-GB,en-US;q=0.9,en;q=0.8",
     "cache-control" -> "max-age=0",
-    "origin" -> "https://immigration-appeal.aat.platform.hmcts.net",
+    "origin" -> "https://immigration-appeal.perftest.platform.hmcts.net",
     "sec-ch-ua" -> """ Not;A Brand";v="99", "Google Chrome";v="91", "Chromium";v="91""",
     "sec-ch-ua-mobile" -> "?0",
     "sec-fetch-dest" -> "document",
@@ -65,7 +65,7 @@ object Headers {
     "accept-encoding" -> "gzip, deflate, br",
     "accept-language" -> "en-GB,en-US;q=0.9,en;q=0.8",
     "cache-control" -> "max-age=0",
-    "origin" -> "https://idam-web-public.aat.platform.hmcts.net",
+    "origin" -> "https://idam-web-public.perftest.platform.hmcts.net",
     "sec-ch-ua" -> """ Not;A Brand";v="99", "Google Chrome";v="91", "Chromium";v="91""",
     "sec-ch-ua-mobile" -> "?0",
     "sec-fetch-dest" -> "document",

@@ -59,7 +59,7 @@ gatling {
     toolVersion '3.3.1'
     scalaVersion '2.12.12'
     simulations = [
-            'uk.gov.hmcts.reform.cmc.performance.simulations.AIPSimulation'
+            'uk.gov.hmcts.reform.aip.performance.simulations.AIPSimulation'
     ]
 }
 

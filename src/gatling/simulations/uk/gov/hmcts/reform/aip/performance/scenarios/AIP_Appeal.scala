@@ -1,14 +1,11 @@
 
-package uk.gov.hmcts.reform.cmc.performance.scenarios
+package uk.gov.hmcts.reform.aip.performance.scenarios
+
 import java.io.{BufferedWriter, FileWriter}
 
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
-import uk.gov.hmcts.reform.cmc.performance.scenarios.utils.{CsrfCheck, CurrentPageCheck, Environment,Headers}
-import uk.gov.hmcts.reform.cmc.performance.scenarios.utils.CsrfCheck.{csrfParameter, csrfTemplate}
-import uk.gov.hmcts.reform.cmc.performance.scenarios.utils.CurrentPageCheck.currentPageTemplate
-
-import scala.concurrent.duration._
+import utils.{CsrfCheck, Environment,Headers}
 
 /*AIP Appeal is a new Journey which allows an appellant to go through several eligibility questions and if successful
 they can login to the new AIP portal and start an appeal. This script carries out this business journey all the way
@@ -21,103 +18,98 @@ val BaseURL = Environment.baseURL
 val IdAMURL = Environment.idamURL
 val MinThinkTime = Environment.minThinkTime
 val MaxThinkTime = Environment.maxThinkTime
-val aipuser = csv("AIPUser.csv").circular
-val aipuserdetails = csv("AIPUserDetails.csv").circular
-val holetterdetails = csv("HOLetterDetails.csv").circular
-val personaldetails = csv("PersonalDetails.csv").circular
 
   //AIP Start Appeal HomePage
   val home = group ("AIP_010_Homepage") {
-    exec(flushHttpCache).exec(flushSessionCookies).exec(flushCookieJar)
-      .exec(http("AIP_010_Homepage")
-        .get("/start-appeal")
-        .check(CurrentPageCheck.save)
-        //.check(CsrfCheck.save)
-        .check(status.is(200))
-        .check(regex("Appeal an immigration or asylum decision"))
-        .headers(Headers.headers_2))
-      .exitHereIfFailed
+    exec(http("AIP_010_Homepage")
+      .get("/start-appeal")
+      .headers(Headers.headers_2)
+      .check(regex("Appeal an immigration or asylum decision")))
+  }
+  .pause(MinThinkTime, MaxThinkTime)
+
+  //User first answers eligibility questions before he is allowed to login.  First question - Are you currently in UK
+  val eligibility =group("AIP_020_eligibility_GET") {
+    exec(http("AIP_020_eligibility_GET")
+      .get("/eligibility")
+      .headers(Headers.headers_19)
+      .check(CsrfCheck.save)
+      .check(regex("Are you currently living in the United Kingdom")))
+
+  }
+    .pause(MinThinkTime, MaxThinkTime)
+
+    // Eligibity - Q1 Are you living in UK - Answers yes
+    .group("AIP_030_eligibility_Question1_POST") {
+      exec(http("AIP_030_eligibility_Question1_POST")
+        .post("/eligibility")
+        .headers(Headers.headers_34)
+        .formParam("_csrf", "${csrf}")
+        .formParam("questionId", "0")
+        .formParam("answer", "yes")
+        .formParam("continue", "")
+        .check(CsrfCheck.save)
+        .check(regex("Are you currently in detention")))
     }
     .pause(MinThinkTime, MaxThinkTime)
 
-      //User first answers eligibility questions before he is allowed to login.  First question - Are you currently in UK
-      val eligibility =group("AIP_020_eligibility_GET") {
-        exec(http("AIP_020_eligibility_GET")
-          .get("/eligibility")
-          .check(CurrentPageCheck.save)
-          .check(CsrfCheck.save)
-          .check(status.is(200))
-          .check(regex("Are you currently living in the United Kingdom"))
-          .headers(Headers.headers_19))
-      }
-        .pause(MinThinkTime, MaxThinkTime)
+    // Eligibity - Q2 Are you in Detention - Answers no
+    .group("AIP_040_eligibility_Question2_POST") {
+      exec(http("AIP_040_eligibility_Question2_POST")
+        .post("/eligibility")
+        .headers(Headers.headers_34)
+        .formParam("_csrf", "${csrf}")
+        .formParam("questionId", "1")
+        .formParam("answer", "no")
+        .formParam("continue", "")
+        .check(CsrfCheck.save)
+        .check(regex("Are you appealing an Asylum")))
+    }
 
-        // Eligibity - Q1 Are you living in UK - Answers yes
-        .group("AIP_030_eligibility_Question1_POST") {
-          exec(http("AIP_030_eligibility_Question1_POST")
-            .post("/eligibility")
-            .headers(Headers.headers_34)
-            .formParam("_csrf", "${csrf}")
-            .formParam("questionId", "0")
-            .formParam("answer", "yes")
-            .formParam("continue", "")
-            .check(status.is(200))
-            .check(CsrfCheck.save))
-        }
-        .pause(MinThinkTime, MaxThinkTime)
+    .pause(MinThinkTime, MaxThinkTime)
 
-        // Eligibity - Q2 Are you in Detention - Answers no
-        .group("AIP_040_eligibility_Question2_POST") {
-          exec(http("AIP_040_eligibility_Question2_POST")
-            .post("/eligibility")
-            .headers(Headers.headers_34)
-            .formParam("_csrf", "${csrf}")
-            .formParam("questionId", "1")
-            .formParam("answer", "no")
-            .formParam("continue", "")
-            .check(status.is(200))
-            .check(CsrfCheck.save))
-        }
+    // Eligibity - Q3 Are you Appealing an asylum or Humanitarian Decision - Answers Yes
+    .group("AIP_050_eligibility_Question3_POST") {
+      exec(http("AIP_050_eligibility_Question3_POST")
+        .post("/eligibility")
+        .headers(Headers.headers_34)
+        .formParam("_csrf", "${csrf}")
+        .formParam("questionId", "2")
+        .formParam("answer", "yes")
+        .formParam("continue", "")
+        .check(regex("You can use the new service")))
+    }
 
-        .pause(MinThinkTime, MaxThinkTime)
-
-        // Eligibity - Q3 Are you Appealing an asylum or Humanitarian Decision - Answers Yes
-        .group("AIP_050_eligibility_Question3_POST") {
-          exec(http("AIP_050_eligibility_Question3_POST")
-            .post("/eligibility")
-            .headers(Headers.headers_34)
-            .formParam("_csrf", "${csrf}")
-            .formParam("questionId", "2")
-            .formParam("answer", "yes")
-            .formParam("continue", "")
-            .check(status.is(200)))
-        }
-
-        .pause(MinThinkTime, MaxThinkTime)
+    .pause(MinThinkTime, MaxThinkTime)
 
   // Users gets to Login Page after successfully answering the eligibility questions
   val Login =group("AIP_060_Login_GET") {
     exec (http ("AIP_060_Login_GET")
       .get("/login?register=true")
       .headers(Headers.headers_19)
-      .check (status.is (200))
+      .check(regex("client_id=iac&state=([0-9a-z-]+?)&scope").saveAs("state"))
       .check(CsrfCheck.save))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
 
+    .group("AIP_075_Login_GET") {
+      exec(http("AIP_075_Login_POST")
+        .get(IdAMURL + "/login?redirect_uri=https%3a%2f%2fimmigration-appeal.perftest.platform.hmcts.net%2fredirectUrl&client_id=iac&state=${state}&scope=")
+        .headers(Headers.headers_113)
+        .check(regex("Sign in or create an account")))
+    }
+
   //Login into Application with an IAC Citizen account
     .group("AIP_080_Login_POST") {
-      feed(aipuser)
-       .exec(http("AIP_080_Login_POST")
-         .post(IdAMURL + "/login?redirect_uri=https%3a%2f%2fimmigration-appeal.perftest.platform.hmcts.net%2fredirectUrl&client_id=iac&state=b14effe6-2e3d-4ee0-8dab-24dfe97ee42f&scope=")
+       exec(http("AIP_080_Login_POST")
+         .post(IdAMURL + "/login?redirect_uri=https%3a%2f%2fimmigration-appeal.perftest.platform.hmcts.net%2fredirectUrl&client_id=iac&state=${state}&scope=")
          .headers(Headers.headers_113)
-         .formParam("username", "${aipuser}")
+         .formParam("username", "${emailAddress}")
          .formParam("password", "${password}")
          .formParam("save", "Sign in")
          .formParam("selfRegistrationEnabled", "true")
          .formParam("_csrf", "${csrf}")
-         .check (status.is (200))
          .check(regex("Your appeal details")))
     }
 
@@ -128,9 +120,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       exec(http("AIP_090_AboutAppeal_GET")
       .get("/about-appeal")
       .headers(Headers.headers_19)
-      .check(regex("Tell us about your appeal"))
-      .check (status.is (200)))
-
+      .check(regex("Tell us about your appeal")))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
@@ -140,7 +130,6 @@ val personaldetails = csv("PersonalDetails.csv").circular
     exec(http("AIP_100_HomeOffice_GET")
     .get("/home-office-reference-number")
     .headers(Headers.headers_19)
-    .check (status.is (200))
     .check(CsrfCheck.save)
     .check(regex("What is your Home Office reference number")))
   }
@@ -149,35 +138,30 @@ val personaldetails = csv("PersonalDetails.csv").circular
 
   //Enter Home Office Letter Reference - this can be any 10 digit number
   .group("AIP_110_HomeOffice_POST") {
-    feed(holetterdetails)
-    .exec(http("AIP_110_HomeOffice_POST")
+    exec(http("AIP_110_HomeOffice_POST")
     .post("/home-office-reference-number")
     .headers(Headers.headers_34)
     .formParam("_csrf", "${csrf}")
     .formParam("homeOfficeRefNumber", "${HORef}")
     .formParam("saveAndContinue", "")
-   //.resources(http("request_162")
     .check(CsrfCheck.save)
-    .check(regex("What date was your decision letter sent"))
-    .check (status.is (200)))
+    .check(regex("What date was your decision letter sent")))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
 
   //Date Home Office Letter Sent this date has to be within the last 30 days
   .group("AIP_120_HomeOffice_DateLetterSent") {
-    feed(holetterdetails)
-    .exec(http("AIP_120_HomeOffice_DateLetterSent")
+    exec(http("AIP_120_HomeOffice_DateLetterSent")
     .post("/date-letter-sent")
       .headers(Headers.headers_34)
       .formParam("_csrf", "${csrf}")
-      .formParam("day", "${day}")
-      .formParam("month", "${month}")
-      .formParam("year", "${year}")
+      .formParam("day", "${HOday}")
+      .formParam("month", "${HOmonth}")
+      .formParam("year", "${HOyear}")
       .formParam("saveAndContinue", "")
       .check(CsrfCheck.save)
-      .check(regex("Upload your Home Office decision letter"))
-      .check (status.is (200)))
+      .check(regex("Upload your Home Office decision letter")))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
@@ -193,8 +177,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
           .transferEncoding("binary"))
         .asMultipartForm
         .formParam("classification", "PUBLIC")
-    .check(CsrfCheck.save)
-    .check(status in(200, 304)))
+    .check(CsrfCheck.save))
     }
 
     .pause(MinThinkTime, MaxThinkTime)
@@ -204,7 +187,6 @@ val personaldetails = csv("PersonalDetails.csv").circular
       exec(http("AIP_130C_HomeOffice_UploadDecisionLetter")
         .get("/home-office-upload-decision-letter")
         .headers(Headers.headers_19)
-        .check (status.is (200))
         .check(regex("HORefusal.pdf"))
         .check(CsrfCheck.save))
     }
@@ -219,8 +201,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
         .formParam("_csrf", "${csrf}")
         .formParam("file-upload", "")
         .formParam("saveAndContinue", "")
-        .check(regex("Tell us about your appeal"))
-        .check (status.is (200)))
+        .check(regex("Tell us about your appeal")))
     }
 
     .pause(MinThinkTime, MaxThinkTime)
@@ -229,21 +210,18 @@ val personaldetails = csv("PersonalDetails.csv").circular
   val PersonalDetails =
 
     group("AIP_140_Name_GET") {
-    feed(personaldetails)
-    .exec(http("AIP_140_Name_GET")
-    .get("/name")
-    .headers(Headers.headers_19)
-    .check (status.is (200))
-    .check(regex("What is your name?"))
-    .check(CsrfCheck.save))
+      exec(http("AIP_140_Name_GET")
+      .get("/name")
+      .headers(Headers.headers_19)
+      .check(regex("What is your name?"))
+      .check(CsrfCheck.save))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
 
   //Enter Name Details
   .group("AIP_150_Name_Post") {
-    feed(personaldetails)
-    .exec(http("AIP_150_Name_Post")
+    exec(http("AIP_150_Name_Post")
     .post("/name")
       .headers(Headers.headers_34)
       .formParam("_csrf", "${csrf}")
@@ -251,16 +229,14 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .formParam("familyName", "${familyname}")
       .formParam("saveAndContinue", "")
       .check(CsrfCheck.save)
-      .check(regex("What is your date of birth?"))
-      .check (status.is (200)))
+      .check(regex("What is your date of birth?")))
   }
 
    .pause(MinThinkTime, MaxThinkTime)
 
   //Enter Date of Birth Details
   .group("AIP_160_Date-Birth_Post") {
-    feed(personaldetails)
-    .exec(http("AIP_160_Date-Birth_Post")
+    exec(http("AIP_160_Date-Birth_Post")
     .post("/date-birth")
     .headers(Headers.headers_34)
     .formParam("_csrf", "${csrf}")
@@ -268,26 +244,22 @@ val personaldetails = csv("PersonalDetails.csv").circular
     .formParam("month", "${month}")
     .formParam("year", "${year}")
     .formParam("saveAndContinue", "")
-    //.resources(http("request_264")
     .check(CsrfCheck.save)
-    .check(regex("What is your nationality?"))
-    .check (status.is (200)))
+    .check(regex("What is your nationality?")))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
 
   //Enter Nationality
   .group("AIP_170_Nationality_Post") {
-    feed(personaldetails)
-    .exec(http("AIP_170_Nationality_Post")
+    exec(http("AIP_170_Nationality_Post")
     .post("/nationality")
       .headers(Headers.headers_34)
       .formParam("_csrf", "${csrf}")
       .formParam("nationality", "${nationality}")
       .formParam("saveAndContinue", "")
       .check(CsrfCheck.save)
-      .check(regex("What is your address?"))
-      .check (status.is (200)))
+      .check(regex("What is your address?")))
   }
 
     .pause(MinThinkTime, MaxThinkTime)
@@ -298,8 +270,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .get("/manual-address")
       .headers(Headers.headers_19)
       .check(CsrfCheck.save)
-      .check(regex("What is your address?"))
-      .check (status.is (200)))
+      .check(regex("What is your address?")))
   }
     .pause(MinThinkTime, MaxThinkTime)
 
@@ -315,8 +286,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .formParam("address-county", "London")
       .formParam("address-postcode", "e14 3rr")
       .formParam("saveAndContinue", "")
-      .check(regex("Tell us about your appeal"))
-      .check (status.is (200)))
+      .check(regex("Tell us about your appeal")))
     }
 
     .pause(MinThinkTime, MaxThinkTime)
@@ -327,8 +297,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .get("/contact-preferences")
       .headers(Headers.headers_19)
       .check(CsrfCheck.save)
-      .check(regex("How do you want us to contact you?"))
-      .check (status.is (200)))
+      .check(regex("How do you want us to contact you?")))
   }
 
   .pause(MinThinkTime, MaxThinkTime)
@@ -343,8 +312,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .formParam("email-value", "perftestiac001@gmail.com")
       .formParam("text-message-value", "")
       .formParam("saveAndContinue", "")
-      .check(regex("Tell us about your appeal"))
-      .check (status.is (200)))
+      .check(regex("Tell us about your appeal")))
   }
 
   .pause(MinThinkTime, MaxThinkTime)
@@ -354,7 +322,6 @@ val personaldetails = csv("PersonalDetails.csv").circular
     exec(http("AIP_220_AppealType_GET")
       .get("/appeal-type")
       .headers(Headers.headers_19)
-      .check (status.is (200))
       .check(regex("What is your appeal type?"))
       .check(CsrfCheck.save))
   }
@@ -369,8 +336,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .formParam("_csrf", "${csrf}")
       .formParam("appealType", "protection")
       .formParam("saveAndContinue", "")
-      .check(regex("Tell us about your appeal"))
-      .check (status.is (200)))
+      .check(regex("Tell us about your appeal")))
   }
 
   .pause(MinThinkTime, MaxThinkTime)
@@ -380,7 +346,6 @@ val personaldetails = csv("PersonalDetails.csv").circular
     exec(http("AIP_240_CheckAnswers_GET")
       .get("/check-answers")
       .headers(Headers.headers_19)
-      .check (status.is (200))
       .check(regex("Check your answer"))
       .check(regex("I believe the information I have given is true"))
       .check(CsrfCheck.save))
@@ -395,8 +360,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
       .headers(Headers.headers_34)
       .formParam("_csrf", "${csrf}")
       .formParam("statement", "acceptance")
-      .check(regex("Your appeal details have been sent"))
-      .check (status.is (200)))
+      .check(regex("Your appeal details have been sent")))
    }
 
   .pause(MinThinkTime, MaxThinkTime)
@@ -407,8 +371,7 @@ val personaldetails = csv("PersonalDetails.csv").circular
     exec(http("AIP_260_AppealOverview_GET")
       .get("/appeal-overview")
       .headers(Headers.headers_19)
-      .check(regex("""Appeal reference:(.*)</p>""").saveAs("AppealRef"))
-      .check (status.is (200)))
+      .check(regex("""Appeal reference:(.*)</p>""").saveAs("AppealRef")))
 
     .exec { session =>
       val fw = new BufferedWriter(new FileWriter("AIPAppealRef.csv", true))
@@ -424,8 +387,6 @@ val personaldetails = csv("PersonalDetails.csv").circular
   val AIPLogout =group("AIP_270_Logout_GET") {
     exec(http("AIP_270_Logout_GET")
       .get("/logout")
-      .headers(Headers.headers_19)
-      .check (status.is (200)))
-  //  .check(CsrfCheck.save))
+      .headers(Headers.headers_19))
   }
 }
