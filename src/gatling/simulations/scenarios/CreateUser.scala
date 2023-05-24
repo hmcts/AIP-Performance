@@ -1,4 +1,4 @@
-package uk.gov.hmcts.reform.cmc.performance.scenarios
+package scenarios
 
 import java.io.{BufferedWriter, FileWriter}
 

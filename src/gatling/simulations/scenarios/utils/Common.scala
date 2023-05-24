@@ -1,4 +1,4 @@
-package uk.gov.hmcts.reform.cmc.performance.scenarios.utils
+package scenarios.utils
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -27,16 +27,7 @@ object Common {
     list(rnd.nextInt(list.length))
   }
   
-  import scala.util.Random
-  object MyClass {
-    def main(args: Array[String]) {
-      val list = List(12, 65, 89, 41, 99, 102)
-      val random = new Random
-      println("Random value of the list " + list(random.nextInt(list.length)))
-    }
-  }
-
-
+  
  def getDay(): String = {
     (1 + rnd.nextInt(28)).toString
   }
