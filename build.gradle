@@ -13,7 +13,7 @@ java {
 
 dependencies {
 
-    gatling group: 'uk.gov.service.notify', name: 'notifications-java-client', version: '3.14.1-RELEASE'
+    gatling group: 'uk.gov.service.notify', name: 'notifications-java-client', version: '3.19.2-RELEASE'
 
 }
 
